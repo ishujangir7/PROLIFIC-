@@ -14,3 +14,4 @@ export async function GET() {
     return Response.json({ error: "Failed to load lectures" }, { status: 500 });
   }
 }
+
