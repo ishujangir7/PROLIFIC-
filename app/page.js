@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { courses, lectures, tests, materials } from "./data";
 
 const NAV_MAIN = [
   { id: "home", icon: "⌂", label: "Home" },
@@ -36,6 +35,40 @@ export default function App() {
   const [courseQuery, setCourseQuery] = useState("");
   const [savedKeys, setSavedKeys] = useState(new Set());
   const [selectedOption, setSelectedOption] = useState(null);
+
+  const [courses, setCourses] = useState([]);
+  const [lectures, setLectures] = useState([]);
+  const [tests, setTests] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  // Load real data from the database-backed API routes
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [coursesRes, lecturesRes, testsRes, materialsRes] = await Promise.all([
+          fetch("/api/courses"),
+          fetch("/api/lectures"),
+          fetch("/api/tests"),
+          fetch("/api/materials"),
+        ]);
+        if (!coursesRes.ok || !lecturesRes.ok || !testsRes.ok || !materialsRes.ok) {
+          throw new Error("One or more API routes returned an error");
+        }
+        setCourses(await coursesRes.json());
+        setLectures(await lecturesRes.json());
+        setTests(await testsRes.json());
+        setMaterials(await materialsRes.json());
+      } catch (error) {
+        console.error("Failed to load data:", error);
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   // Close modal on Escape, matching original keyboard behavior
   useEffect(() => {
@@ -208,6 +241,12 @@ export default function App() {
             <section className={`page${page === "home" ? " active" : ""}`}>
               <h1>Good morning, Student 👋</h1>
               <div className="sub">Continue your preparation from where you left off.</div>
+              {loading && <div className="notice">Loading your courses…</div>}
+              {loadError && (
+                <div className="notice danger">
+                  Couldn't reach the database. Check that DATABASE_URL is set correctly in Vercel and redeploy.
+                </div>
+              )}
               <div className="card hero">
                 <div>
                   <div className="small">CONTINUE LEARNING</div>
@@ -265,7 +304,7 @@ export default function App() {
                 </div>
                 <div className="grid g3">
                   {courses.slice(0, 3).map((c, i) => (
-                    <CourseCard key={c.name} course={c} index={i} onContinue={() => showPage("lectures")} />
+                    <CourseCard key={c.id} course={c} index={i} onContinue={() => showPage("lectures")} />
                   ))}
                 </div>
               </div>
@@ -318,7 +357,7 @@ export default function App() {
               </div>
               <div className="grid g3">
                 {filteredCourses.map((c, i) => (
-                  <CourseCard key={c.name} course={c} index={i} onContinue={() => showPage("lectures")} />
+                  <CourseCard key={c.id} course={c} index={i} onContinue={() => showPage("lectures")} />
                 ))}
               </div>
             </section>
@@ -333,14 +372,14 @@ export default function App() {
                 <button className="chip">Unwatched</button>
               </div>
               <div className="grid g2">
-                {lectures.map((title, i) => (
+                {lectures.map((lecture, i) => (
                   <LectureCard
-                    key={title}
-                    title={title}
+                    key={lecture.id}
+                    lecture={lecture}
                     index={i}
-                    saved={savedKeys.has(`lecture-${i}`)}
-                    onWatch={() => openVideo(title)}
-                    onToggleSave={() => toggleSave(`lecture-${i}`)}
+                    saved={savedKeys.has(`lecture-${lecture.id}`)}
+                    onWatch={() => openVideo(lecture.title)}
+                    onToggleSave={() => toggleSave(`lecture-${lecture.id}`)}
                   />
                 ))}
               </div>
@@ -358,8 +397,8 @@ export default function App() {
                 <button className="chip">Railway</button>
               </div>
               <div className="grid g2">
-                {tests.map((title, i) => (
-                  <TestCard key={title} title={title} index={i} onStart={() => setActiveModal("testModal")} />
+                {tests.map((test, i) => (
+                  <TestCard key={test.id} test={test} index={i} onStart={() => setActiveModal("testModal")} />
                 ))}
               </div>
             </section>
@@ -377,13 +416,12 @@ export default function App() {
                 <button className="chip">PYQs</button>
               </div>
               <div className="list">
-                {materials.map((title, i) => (
+                {materials.map((material) => (
                   <MaterialItem
-                    key={title}
-                    title={title}
-                    index={i}
-                    saved={savedKeys.has(`material-${i}`)}
-                    onToggleSave={() => toggleSave(`material-${i}`)}
+                    key={material.id}
+                    material={material}
+                    saved={savedKeys.has(`material-${material.id}`)}
+                    onToggleSave={() => toggleSave(`material-${material.id}`)}
                   />
                 ))}
               </div>
@@ -809,17 +847,15 @@ function CourseCard({ course, index, onContinue }) {
   );
 }
 
-function LectureCard({ title, index, saved, onWatch, onToggleSave }) {
+function LectureCard({ lecture, index, saved, onWatch, onToggleSave }) {
   return (
     <div className="card">
       <div className="row">
         <div className="mini">▶</div>
         <span className="small">{index < 1 ? "78% watched" : "Unwatched"}</span>
       </div>
-      <h3 style={{ marginTop: 18 }}>{title}</h3>
-      <p className="sub">
-        SSC CGL 2026 · History · {18 + index * 3}:20
-      </p>
+      <h3 style={{ marginTop: 18 }}>{lecture.title}</h3>
+      <p className="sub">SSC CGL 2026 · History · {lecture.duration}</p>
       <div className="row">
         <button className="btn primary" onClick={onWatch}>
           Watch Lecture
@@ -832,15 +868,15 @@ function LectureCard({ title, index, saved, onWatch, onToggleSave }) {
   );
 }
 
-function TestCard({ title, index, onStart }) {
+function TestCard({ test, index, onStart }) {
   return (
     <div className="card">
       <div className="row">
-        <h3>{title}</h3>
-        <span className="chip">{index % 2 ? "Hard" : "Moderate"}</span>
+        <h3>{test.title}</h3>
+        <span className="chip">{test.difficulty}</span>
       </div>
       <div className="meta">
-        {index % 2 ? 50 : 25} Questions · {index % 2 ? 35 : 20} min · {index % 2 ? 100 : 50} Marks
+        {test.question_count} Questions · {test.duration_minutes} min · {test.marks} Marks
       </div>
       <p className="small">
         Previous score: <b style={{ color: "var(--text)" }}>{index % 3 ? 76 : 82}%</b>
@@ -852,15 +888,13 @@ function TestCard({ title, index, onStart }) {
   );
 }
 
-function MaterialItem({ title, index, saved, onToggleSave }) {
+function MaterialItem({ material, saved, onToggleSave }) {
   return (
     <div className="item">
-      <div className="mini">{index % 2 ? "PDF" : "DOC"}</div>
+      <div className="mini">{material.file_type}</div>
       <div className="grow">
-        <b>{title}</b>
-        <div className="small">
-          {index % 2 ? "History" : "General Awareness"} · {index + 2}.{index} MB · Updated recently
-        </div>
+        <b>{material.title}</b>
+        <div className="small">{material.size_mb} MB · Updated recently</div>
       </div>
       <button className="btn secondary" onClick={onToggleSave}>
         {saved ? "★ Saved" : "☆ Save"}
