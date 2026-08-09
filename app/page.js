@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 const NAV_MAIN = [
   { id: "home", icon: "⌂", label: "Home" },
@@ -42,6 +43,12 @@ export default function App() {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadCourseId, setUploadCourseId] = useState("");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
 
   // Load real data from the database-backed API routes
   useEffect(() => {
@@ -92,6 +99,13 @@ export default function App() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // Default the upload form's course once courses have loaded
+  useEffect(() => {
+    if (courses.length > 0 && !uploadCourseId) {
+      setUploadCourseId(String(courses[0].id));
+    }
+  }, [courses, uploadCourseId]);
+
   function systemTheme() {
     return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
@@ -138,6 +152,51 @@ export default function App() {
     setActiveModal(null);
     setSelectedOption(null);
     alert("Demo test submitted. Results: 4/5 correct · 80% accuracy.");
+  }
+
+  async function handleMaterialUpload() {
+    if (!uploadFile || !uploadTitle.trim()) {
+      setUploadMessage("Add a title and choose a file first.");
+      return;
+    }
+    setUploading(true);
+    setUploadMessage("");
+    try {
+      const blob = await upload(uploadFile.name, uploadFile, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+      });
+      const fileType = uploadFile.type.includes("pdf") ? "PDF" : "DOC";
+      const sizeMb = (uploadFile.size / (1024 * 1024)).toFixed(1);
+
+      const res = await fetch("/api/materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: uploadTitle.trim(),
+          file_type: fileType,
+          file_url: blob.url,
+          size_mb: sizeMb,
+          course_id: uploadCourseId || null,
+        }),
+      });
+      if (!res.ok) throw new Error("File uploaded, but saving it to the database failed.");
+      const saved = await res.json();
+
+      setMaterials((prev) => [...prev, saved]);
+      setUploadMessage("Uploaded successfully.");
+      setUploadTitle("");
+      setUploadFile(null);
+      setTimeout(() => {
+        setActiveModal(null);
+        setUploadMessage("");
+      }, 1200);
+    } catch (error) {
+      console.error("Material upload failed:", error);
+      setUploadMessage("Upload failed: " + error.message);
+    } finally {
+      setUploading(false);
+    }
   }
 
   const filteredCourses = courses.filter((c) =>
@@ -206,7 +265,7 @@ export default function App() {
             <div className="avatar">IJ</div>
             <div>
               <b>Ishu Jangir</b>
-              <span>SSC CGL 2026</span>
+              <span>{courses[0]?.name || "Student"}</span>
             </div>
           </div>
         </aside>
@@ -250,15 +309,15 @@ export default function App() {
               <div className="card hero">
                 <div>
                   <div className="small">CONTINUE LEARNING</div>
-                  <h2>SSC CGL 2026</h2>
-                  <p>General Awareness · Lecture 48 — Vedic Age</p>
+                  <h2>{courses[0]?.name || (loading ? "Loading…" : "No courses yet")}</h2>
+                  <p>{courses[0]?.last || ""}</p>
                   <div style={{ maxWidth: 500 }}>
                     <div className="row small">
                       <span>Course Progress</span>
-                      <b>78%</b>
+                      <b>{courses[0]?.progress ?? 0}%</b>
                     </div>
                     <div className="progress">
-                      <i style={{ width: "78%" }} />
+                      <i style={{ width: `${courses[0]?.progress ?? 0}%` }} />
                     </div>
                   </div>
                 </div>
@@ -722,6 +781,27 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
+              <div className="card section">
+                <div className="section-head">
+                  <h2>Study Materials</h2>
+                  <button className="btn primary" onClick={() => setActiveModal("uploadModal")}>
+                    + Upload Material
+                  </button>
+                </div>
+                <div className="list">
+                  {materials.map((m) => (
+                    <div className="item" key={m.id}>
+                      <div className="mini">{m.file_type || "DOC"}</div>
+                      <div className="grow">
+                        <b>{m.title}</b>
+                        <div className="small">
+                          {m.file_url ? `Uploaded · ${m.size_mb} MB` : "No file uploaded yet"}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </section>
           </div>
         </main>
@@ -818,6 +898,48 @@ export default function App() {
           </div>
         </div>
       </div>
+      {/* UPLOAD MATERIAL MODAL */}
+      <div className={`modal${activeModal === "uploadModal" ? " show" : ""}`}>
+        <div className="modalbox">
+          <div className="row">
+            <h2>Upload Material</h2>
+            <button className="round" onClick={() => setActiveModal(null)}>
+              ×
+            </button>
+          </div>
+          <div className="form">
+            <label>TITLE</label>
+            <input
+              value={uploadTitle}
+              onChange={(e) => setUploadTitle(e.target.value)}
+              placeholder="e.g. Modern History Notes"
+            />
+            <label>COURSE</label>
+            <select value={uploadCourseId} onChange={(e) => setUploadCourseId(e.target.value)}>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <label>FILE (PDF or DOC, up to 20MB)</label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setUploadFile(e.target.files[0] || null)}
+            />
+            {uploadMessage && <div className="notice" style={{ marginTop: 10 }}>{uploadMessage}</div>}
+            <button
+              className="btn primary"
+              style={{ marginTop: 14 }}
+              onClick={handleMaterialUpload}
+              disabled={uploading}
+            >
+              {uploading ? "Uploading…" : "Upload"}
+            </button>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
@@ -899,7 +1021,15 @@ function MaterialItem({ material, saved, onToggleSave }) {
       <button className="btn secondary" onClick={onToggleSave}>
         {saved ? "★ Saved" : "☆ Save"}
       </button>
-      <button className="btn primary">Open</button>
+      {material.file_url ? (
+        <a className="btn primary" href={material.file_url} target="_blank" rel="noopener noreferrer">
+          Open
+        </a>
+      ) : (
+        <button className="btn primary" onClick={() => alert("No file has been uploaded for this material yet.")}>
+          Open
+        </button>
+      )}
     </div>
   );
 }
