@@ -1,9 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 
-const sql = neon(process.env.DATABASE_URL);
-
 export async function GET() {
   try {
+    const sql = neon(process.env.DATABASE_URL);
     const rows = await sql`
       SELECT id, course_id, title, duration, video_url, order_index
       FROM lectures
