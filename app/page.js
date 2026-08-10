@@ -1,26 +1,153 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 
+const ICONS = {
+  home: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5.5 9.5V21h13V9.5" />
+      <path d="M9.5 21v-6h5v6" />
+    </svg>
+  ),
+  courses: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="4" width="7" height="6" rx="1.2" />
+      <rect x="13.5" y="4" width="7" height="6" rx="1.2" />
+      <rect x="3.5" y="14" width="7" height="6" rx="1.2" />
+      <rect x="13.5" y="14" width="7" height="6" rx="1.2" />
+    </svg>
+  ),
+  lectures: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="4" width="17" height="16" rx="2" />
+      <path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  tests: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 3.5h9l3 3V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z" />
+      <path d="M14 3.5V7h4" />
+      <path d="m8 13 2 2 4-4" />
+      <path d="M8 9h4" />
+    </svg>
+  ),
+  materials: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z" />
+      <path d="M7 20a2 2 0 0 1 2-2h10" />
+      <path d="M9 8h7M9 12h7" />
+    </svg>
+  ),
+  materialsAlt: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v18H7.5A2.5 2.5 0 0 0 5 22z" />
+      <path d="M5 4.5v15A2.5 2.5 0 0 1 7.5 22" />
+      <path d="M9 7h6" />
+    </svg>
+  ),
+  progress: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 19V5" />
+      <path d="M4 19h16" />
+      <path d="m7 15 3-4 3 2 5-7" />
+    </svg>
+  ),
+  saved: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m12 17-5 3 1.5-5.7L4 10.5l5.9-.4L12 4.5l2.1 5.6 5.9.4-4.5 3.8L17 20z" />
+    </svg>
+  ),
+  community: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8.5 11.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+      <path d="M15.8 10a2.5 2.5 0 1 0 0-5" />
+      <path d="M3.5 19a5 5 0 0 1 10 0" />
+      <path d="M14 14.5a4.5 4.5 0 0 1 6.5 4" />
+    </svg>
+  ),
+  announcements: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 11h4l8-4v10l-8-4H4z" />
+      <path d="M8 13v5" />
+      <path d="M19 10.5a3.5 3.5 0 0 1 0 3" />
+    </svg>
+  ),
+  notifications: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 9a6 6 0 0 1 12 0v4l2 2H4l2-2z" />
+      <path d="M10 19h4" />
+    </svg>
+  ),
+  profile: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+    </svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z" />
+      <path d="M4 13.5v-3l2.1-.7a7 7 0 0 1 .9-1.6L6.1 6.1l2.1-2.1 2.1.9c.5-.3 1-.6 1.6-.9L12.5 2h3l.7 2.1c.6.2 1.1.5 1.6.9l2.1-.9 2.1 2.1-.9 2.1c.4.5.7 1 .9 1.6l2.1.7v3l-2.1.7a7 7 0 0 1-.9 1.6l.9 2.1-2.1 2.1-2.1-.9c-.5.4-1 .7-1.6.9l-.7 2.1h-3l-.7-2.1a7 7 0 0 1-1.6-.9l-2.1.9-2.1-2.1.9-2.1a7 7 0 0 1-.9-1.6z" />
+    </svg>
+  ),
+  admin: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </svg>
+  ),
+  play: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <path d="m10 8.5 5 3.5-5 3.5z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  star: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z" />
+    </svg>
+  ),
+  menu: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  ),
+  theme: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  ),
+};
+
 const NAV_MAIN = [
-  { id: "home", icon: "⌂", label: "Home" },
-  { id: "courses", icon: "▦", label: "Courses" },
-  { id: "lectures", icon: "▶", label: "Video Lectures" },
-  { id: "tests", icon: "✓", label: "Test Series" },
-  { id: "materials", icon: "▤", label: "Study Materials" },
-  { id: "progress", icon: "◒", label: "My Progress" },
-  { id: "saved", icon: "☆", label: "Saved" },
+  { id: "home", icon: ICONS.home, label: "Home" },
+  { id: "courses", icon: ICONS.courses, label: "Courses" },
+  { id: "lectures", icon: ICONS.lectures, label: "Video Lectures" },
+  { id: "tests", icon: ICONS.tests, label: "Test Series" },
+  { id: "materials", icon: ICONS.materials, label: "Study Materials" },
+  { id: "progress", icon: ICONS.progress, label: "My Progress" },
+  { id: "saved", icon: ICONS.saved, label: "Saved" },
 ];
 const NAV_COMMUNITY = [
-  { id: "community", icon: "◎", label: "Community" },
-  { id: "announcements", icon: "!", label: "Announcements" },
+  { id: "community", icon: ICONS.community, label: "Community" },
+  { id: "announcements", icon: ICONS.announcements, label: "Announcements" },
 ];
 const NAV_ACCOUNT = [
-  { id: "notifications", icon: "♢", label: "Notifications" },
-  { id: "profile", icon: "○", label: "Profile" },
-  { id: "settings", icon: "⚙", label: "Settings" },
-  { id: "admin", icon: "▣", label: "Admin" },
+  { id: "notifications", icon: ICONS.notifications, label: "Notifications" },
+  { id: "profile", icon: ICONS.profile, label: "Profile" },
+  { id: "settings", icon: ICONS.settings, label: "Settings" },
+  { id: "admin", icon: ICONS.admin, label: "Admin" },
+];
+
+const BOTTOM_NAV = [
+  { id: "home", icon: ICONS.home, label: "Home" },
+  { id: "courses", icon: ICONS.courses, label: "Courses" },
+  { id: "tests", icon: ICONS.tests, label: "Tests" },
+  { id: "materials", icon: ICONS.materials, label: "Study" },
+  { id: "profile", icon: ICONS.profile, label: "Profile" },
 ];
 
 function pageTitle(id) {
@@ -125,10 +252,32 @@ export default function App() {
     setTheme(next);
   }
 
-  function showPage(id) {
+  const navigationReady = useRef(false);
+
+  // Set up in-app navigation history: Back returns to the previous page
+  // instead of leaving the site, matching a native-app feel.
+  useEffect(() => {
+    const initialPage = window.location.hash.replace("#", "") || "home";
+    window.history.replaceState({ page: initialPage }, "", window.location.href);
+    navigationReady.current = true;
+    setPage(initialPage);
+
+    function onPopState(e) {
+      const targetPage = (e.state && e.state.page) || "home";
+      setPage(targetPage);
+      setSidebarOpen(false);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function showPage(id, fromHistory = false) {
     setPage(id);
     setSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+    if (navigationReady.current && !fromHistory) {
+      window.history.pushState({ page: id }, "", window.location.href.split("#")[0] + "#" + id);
+    }
   }
   function globalSearch(q) {
     setHeaderQuery(q);
@@ -212,10 +361,12 @@ export default function App() {
       <div className="app">
         <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
           <div className="brand">
-            <div className="logo">P</div>
+            <div className="logo">
+              <img src="/logo.png" alt="PROLIFIC HUB logo" />
+            </div>
             <div>
               <strong>PROLIFIC HUB</strong>
-              <small>Educational Platform</small>
+              <small>Platform by Ishu Jangir</small>
             </div>
           </div>
 
@@ -272,10 +423,12 @@ export default function App() {
 
         <main className="main">
           <header className="header">
-            <button className="round mobile-menu" onClick={() => setSidebarOpen(true)}>
-              ☰
-            </button>
-            <div className="crumb">{pageTitle(page)}</div>
+            <div className="header-left">
+              <button className="round mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+                {ICONS.menu}
+              </button>
+              <div className="crumb">{pageTitle(page)}</div>
+            </div>
             <input
               className="search"
               placeholder="Search courses, lectures, tests..."
@@ -283,13 +436,13 @@ export default function App() {
               onChange={(e) => globalSearch(e.target.value)}
             />
             <div className="header-actions">
-              <button className="round" onClick={() => showPage("notifications")}>
-                ♢
+              <button className="round" onClick={() => showPage("notifications")} aria-label="Notifications">
+                {ICONS.notifications}
               </button>
-              <button className="round" onClick={toggleTheme}>
-                ◐
+              <button className="round" onClick={toggleTheme} aria-label="Theme">
+                {ICONS.theme}
               </button>
-              <button className="round" onClick={() => showPage("profile")}>
+              <button className="round profile-btn" onClick={() => showPage("profile")} aria-label="Profile">
                 IJ
               </button>
             </div>
@@ -332,22 +485,22 @@ export default function App() {
                 </div>
                 <div className="quick">
                   <button onClick={() => showPage("tests")}>
-                    <span>✓</span>
+                    <span>{ICONS.tests}</span>
                     <b>Start Test</b>
                     <small>Practice now</small>
                   </button>
                   <button onClick={() => showPage("courses")}>
-                    <span>▦</span>
+                    <span>{ICONS.courses}</span>
                     <b>My Courses</b>
                     <small>Continue learning</small>
                   </button>
                   <button onClick={() => showPage("materials")}>
-                    <span>▤</span>
+                    <span>{ICONS.materialsAlt}</span>
                     <b>Study Materials</b>
                     <small>Notes &amp; PDFs</small>
                   </button>
                   <button onClick={() => showPage("progress")}>
-                    <span>◒</span>
+                    <span>{ICONS.progress}</span>
                     <b>My Progress</b>
                     <small>Track performance</small>
                   </button>
@@ -555,7 +708,7 @@ export default function App() {
               </div>
               <div className="list">
                 <div className="item">
-                  <div className="mini">▶</div>
+                  <div className="mini">{ICONS.play}</div>
                   <div className="grow">
                     <b>Lecture 48 — Vedic Age</b>
                     <div className="small">SSC CGL 2026 · History</div>
@@ -606,14 +759,14 @@ export default function App() {
               <div className="sub">Important updates from PROLIFIC HUB.</div>
               <div className="list">
                 <div className="item">
-                  <div className="mini">!</div>
+                  <div className="mini">{ICONS.announcements}</div>
                   <div className="grow">
                     <b>New SSC CGL test series added</b>
                     <div className="small">Today · 12 new tests are now available.</div>
                   </div>
                 </div>
                 <div className="item">
-                  <div className="mini">▶</div>
+                  <div className="mini">{ICONS.play}</div>
                   <div className="grow">
                     <b>Ancient India lecture module updated</b>
                     <div className="small">Yesterday · 6 new lectures added.</div>
@@ -807,6 +960,19 @@ export default function App() {
         </main>
       </div>
 
+      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+        {BOTTOM_NAV.map((item) => (
+          <button
+            key={item.id}
+            className={page === item.id ? "active" : ""}
+            onClick={() => showPage(item.id)}
+          >
+            <span className="miniicon">{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
       {/* TEST MODAL */}
       <div className={`modal${activeModal === "testModal" ? " show" : ""}`}>
         <div className="modalbox">
@@ -944,10 +1110,12 @@ export default function App() {
   );
 }
 
-function CourseCard({ course, index, onContinue }) {
+function CourseCard({ course, onContinue }) {
   return (
     <div className="card course">
-      <div className={`course-thumb${index % 2 ? " darkthumb" : ""}`}>{course.name}</div>
+      <div className="course-thumb">
+        <span>{course.name}</span>
+      </div>
       <h3>{course.name}</h3>
       <p className="sub">{course.desc}</p>
       <div className="small">{course.teacher}</div>
@@ -973,7 +1141,7 @@ function LectureCard({ lecture, index, saved, onWatch, onToggleSave }) {
   return (
     <div className="card">
       <div className="row">
-        <div className="mini">▶</div>
+        <div className="mini">{ICONS.play}</div>
         <span className="small">{index < 1 ? "78% watched" : "Unwatched"}</span>
       </div>
       <h3 style={{ marginTop: 18 }}>{lecture.title}</h3>
@@ -983,7 +1151,8 @@ function LectureCard({ lecture, index, saved, onWatch, onToggleSave }) {
           Watch Lecture
         </button>
         <button className="btn secondary" onClick={onToggleSave}>
-          {saved ? "★ Saved" : "☆ Save"}
+          {ICONS.star}
+          {saved ? "Saved" : "Save"}
         </button>
       </div>
     </div>
@@ -1019,7 +1188,8 @@ function MaterialItem({ material, saved, onToggleSave }) {
         <div className="small">{material.size_mb} MB · Updated recently</div>
       </div>
       <button className="btn secondary" onClick={onToggleSave}>
-        {saved ? "★ Saved" : "☆ Save"}
+        {ICONS.star}
+        {saved ? "Saved" : "Save"}
       </button>
       {material.file_url ? (
         <a className="btn primary" href={material.file_url} target="_blank" rel="noopener noreferrer">
